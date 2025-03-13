@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-card .stat-content {
+    flex-grow: 1;
+}
+
+.stat-card h3 {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-card .stat-value {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0.5rem 0;
+    color: #333;
+}
+
+.stat-card .stat-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.stat-card .stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.stat-card.total .stat-icon {
+    background: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+}
+
+.stat-card.critical .stat-icon {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+}
+
+.stat-card.ssh .stat-icon {
+    background: rgba(25, 135, 84, 0.1);
+    color: #198754;
+}
+
+.charts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.chart-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.chart-card h3 {
+    color: #333;
+    margin: 0 0 1.5rem 0;
+    font-size: 1.1rem;
+}
+
+.recent-alerts {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.recent-alerts h3 {
+    color: #333;
+    margin: 0 0 1.5rem 0;
+    font-size: 1.1rem;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 500;
+}
+
+.priority-1 {
+    border-left: 4px solid #dc3545;
+}
+
+.priority-2 {
+    border-left: 4px solid #ffc107;
+}
+
+.priority-3 {
+    border-left: 4px solid #0dcaf0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Total des alertes</h5>
+                    <h2 class="card-text">{{ stats.total }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Tentatives d'intrusion</h5>
+                    <h2 class="card-text">{{ stats.by_classification.get('Attempted Administrator Privilege Gain', 0) }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Scans détectés</h5>
+                    <h2 class="card-text">{{ stats.by_classification.get('Attempted Information Leak', 0) }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Priorité haute</h5>
+                    <h2 class="card-text">{{ stats.by_priority.get(1, 0) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau des alertes -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Dernières alertes</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Type</th>
+                            <th>Message</th>
+                            <th>Classification</th>
+                            <th>Priorité</th>
+                            <th>Source</th>
+                            <th>Destination</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in alerts %}
+                        <tr class="{% if alert.priority == 1 %}table-danger{% elif alert.priority == 2 %}table-warning{% else %}table-info{% endif %}">
+                            <td>{{ alert.timestamp }}</td>
+                            <td>{{ alert.type }}</td>
+                            <td>{{ alert.message }}</td>
+                            <td>{{ alert.classification }}</td>
+                            <td>
+                                <span class="badge {% if alert.priority == 1 %}bg-danger{% elif alert.priority == 2 %}bg-warning{% else %}bg-info{% endif %}">
+                                    {{ alert.priority }}
+                                </span>
+                            </td>
+                            <td>{{ alert.source }}</td>
+                            <td>{{ alert.destination }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center">Aucune alerte détectée</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script pour les mises à jour en temps réel -->
+<script>
+function updateDashboard() {
+    fetch('/api/alerts')
+        .then(response => response.json())
+        .then(data => {
+            // Mettre à jour les statistiques
+            document.querySelector('.total-alerts').textContent = data.total;
+            // Vous pouvez ajouter d'autres mises à jour ici
+        })
+        .catch(error => console.error('Erreur:', error));
+}
+
+// Mettre à jour toutes les 10 secondes
+setInterval(updateDashboard, 10000);
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configuration des graphiques avec vérification des données
+    const stats = {{ stats|tojson|safe if stats else {}|tojson|safe }};
+    
+    const alertTypesChart = new Chart(document.getElementById('alertTypesChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Attempted Admin', 'Attempted Inform', 'Generic Protocol', 'Non classifié'],
+            datasets: [{
+                data: [
+                    (stats.by_classification || {})['Attempted Administrator Privilege Gain'] || 0,
+                    (stats.by_classification || {})['Attempted Information Leak'] || 0,
+                    (stats.by_classification || {})['Generic Protocol Command Decode'] || 0,
+                    (stats.by_classification || {})['Non classifié'] || 0
+                ],
+                backgroundColor: [
+                    '#ff6b6b',
+                    '#4ecdc4',
+                    '#a06cd5',
+                    '#ffd93d'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+
+    // Graphique d'activité
+    const systemActivityChart = new Chart(document.getElementById('systemActivityChart'), {
+        type: 'line',
+        data: {
+            labels: Object.keys(stats.timeline || {}),
+            datasets: [{
+                label: "Nombre d'alertes",
+                data: Object.values(stats.timeline || {}),
+                borderColor: '#0d6efd',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

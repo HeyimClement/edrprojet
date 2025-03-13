@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block title %}Kali Shell{% endblock %}
+{% block page_title %}Kali Shell{% endblock %}
+
+{% block extra_css %}
+<style>
+.terminal-container {
+    background: #1e1e1e;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+.terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: #2d2d2d;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 1px solid #3d3d3d;
+}
+
+.terminal-title {
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.terminal-controls span {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-left: 6px;
+}
+
+.terminal-controls .close { background: #ff5f56; }
+.terminal-controls .minimize { background: #ffbd2e; }
+.terminal-controls .maximize { background: #27c93f; }
+
+.terminal {
+    background: #1e1e1e;
+    color: #fff;
+    font-family: 'Fira Code', monospace;
+    padding: 1rem;
+    min-height: 400px;
+    max-height: 600px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.terminal-line {
+    display: flex;
+    margin: 0.2rem 0;
+}
+
+.prompt {
+    color: #4CAF50;
+    margin-right: 0.5rem;
+}
+
+.command-input {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-family: inherit;
+    font-size: inherit;
+    flex-grow: 1;
+    outline: none;
+}
+
+.output-line {
+    color: #b3b3b3;
+    margin: 0.2rem 0;
+    padding-left: calc(2rem + 8px);
+}
+
+.error-line {
+    color: #ff5f56;
+    margin: 0.2rem 0;
+    padding-left: calc(2rem + 8px);
+}
+
+.tools-panel {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.tool-card {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tool-card:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+}
+
+.tool-card h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    color: #333;
+}
+
+.tool-card p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tools-panel">
+    <h3>Menu d'attaque</h3>
+    <div class="tools-grid">
+        <div class="tool-card" onclick="executeAttack('scan')">
+            <h4>Scan complet</h4>
+            <p>Scanner tous les services du honeypot</p>
+        </div>
+        <div class="tool-card" onclick="executeAttack('test_ssh')">
+            <h4>Test SSH</h4>
+            <p>Vérifier la disponibilité du service SSH</p>
+        </div>
+        <div class="tool-card" onclick="executeAttack('bruteforce', ['root', '/usr/share/wordlists/rockyou.txt'])">
+            <h4>Bruteforce SSH</h4>
+            <p>Attaque par dictionnaire sur SSH</p>
+        </div>
+        <div class="tool-card" onclick="executeAttack('dos')">
+            <h4>Test DoS</h4>
+            <p>Test de déni de service basique</p>
+        </div>
+    </div>
+</div>
+
+<div class="terminal-container">
+    <div class="terminal-header">
+        <div class="terminal-controls">
+            <span class="close"></span>
+            <span class="minimize"></span>
+            <span class="maximize"></span>
+        </div>
+        <div class="terminal-title">root@kali</div>
+    </div>
+    <div class="terminal" id="terminal">
+        <div class="terminal-line">
+            <span class="prompt">root@kali:~#</span>
+            <input type="text" class="command-input" id="current-command" autocomplete="off" autofocus>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+class Terminal {
+    constructor(element) {
+        this.terminal = element;
+        this.history = [];
+        this.historyIndex = -1;
+        this.setupInput();
+    }
+
+    setupInput() {
+        this.currentInput = document.getElementById('current-command');
+        this.currentInput.addEventListener('keydown', this.handleKeyDown.bind(this));
+    }
+
+    handleKeyDown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const command = this.currentInput.value.trim();
+            if (command) {
+                this.executeCommand(command);
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.navigateHistory('up');
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.navigateHistory('down');
+        }
+    }
+
+    navigateHistory(direction) {
+        if (direction === 'up' && this.historyIndex < this.history.length - 1) {
+            this.historyIndex++;
+        } else if (direction === 'down' && this.historyIndex > -1) {
+            this.historyIndex--;
+        }
+
+        if (this.historyIndex >= 0 && this.historyIndex < this.history.length) {
+            this.currentInput.value = this.history[this.historyIndex];
+        } else {
+            this.currentInput.value = '';
+        }
+    }
+
+    async executeCommand(command) {
+        // Gestion spéciale de la commande clear
+        if (command.trim() === 'clear') {
+            // Vider le terminal sauf la dernière ligne (input courant)
+            while (this.terminal.children.length > 1) {
+                this.terminal.removeChild(this.terminal.firstChild);
+            }
+            return;
+        }
+
+        // Ajouter la commande à l'historique
+        this.history.unshift(command);
+        this.historyIndex = -1;
+
+        // Créer une nouvelle ligne avec la commande
+        const commandLine = document.createElement('div');
+        commandLine.className = 'terminal-line';
+        commandLine.innerHTML = `<span class="prompt">root@kali:~#</span> ${command}`;
+        this.terminal.insertBefore(commandLine, this.terminal.lastElementChild);
+
+        try {
+            const response = await fetch('/api/kali/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command })
+            });
+
+            const data = await response.json();
+            
+            if (data.error) {
+                this.addOutput(data.error, 'error-line');
+            } else {
+                if (data.output) {
+                    this.addOutput(data.output);
+                }
+            }
+        } catch (error) {
+            this.addOutput(`Erreur: ${error.message}`, 'error-line');
+        }
+
+        // Réinitialiser l'input
+        this.currentInput.value = '';
+        
+        // Créer une nouvelle ligne de commande
+        const newLine = document.createElement('div');
+        newLine.className = 'terminal-line';
+        newLine.innerHTML = `<span class="prompt">root@kali:~#</span>`;
+        
+        const newInput = document.createElement('input');
+        newInput.type = 'text';
+        newInput.className = 'command-input';
+        newInput.autocomplete = 'off';
+        
+        newLine.appendChild(newInput);
+        this.terminal.appendChild(newLine);
+        
+        // Mettre à jour l'input courant et ajouter les événements
+        this.currentInput = newInput;
+        this.currentInput.addEventListener('keydown', this.handleKeyDown.bind(this));
+        this.currentInput.focus();
+        
+        // Scroll vers le bas
+        this.terminal.scrollTop = this.terminal.scrollHeight;
+    }
+
+    addOutput(text, className = 'output-line') {
+        const lines = text.split('\n');
+        lines.forEach(line => {
+            if (line.trim()) {
+                const outputLine = document.createElement('div');
+                outputLine.className = className;
+                outputLine.textContent = line;
+                this.terminal.insertBefore(outputLine, this.terminal.lastElementChild);
+            }
+        });
+    }
+}
+
+// Initialiser le terminal
+const terminal = new Terminal(document.getElementById('terminal'));
+
+// Gestionnaire pour les outils rapides
+document.querySelectorAll('.tool-card').forEach(card => {
+    card.addEventListener('click', () => {
+        const command = card.dataset.command;
+        terminal.currentInput.value = command;
+        terminal.currentInput.focus();
+    });
+});
+
+async function executeAttack(type, params = []) {
+    const commandLine = document.createElement('div');
+    commandLine.className = 'terminal-line';
+    commandLine.innerHTML = `<span class="prompt">root@kali:~#</span> [Launching ${type} attack...]`;
+    terminal.terminal.insertBefore(commandLine, terminal.terminal.lastElementChild);
+
+    try {
+        const response = await fetch('/api/kali/attack', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type, params })
+        });
+
+        const data = await response.json();
+        
+        if (data.error) {
+            terminal.addOutput(data.error, 'error-line');
+        } else {
+            terminal.addOutput(data.output);
+        }
+    } catch (error) {
+        terminal.addOutput(`Error: ${error.message}`, 'error-line');
+    }
+
+    terminal.terminal.scrollTop = terminal.terminal.scrollHeight;
+}
+</script>
+{% endblock %} 

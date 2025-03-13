@@ -1,0 +1,36 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Installation des dépendances système nécessaires pour la compilation
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Création des répertoires nécessaires
+RUN mkdir -p /app/templates /app/static /app/utils
+
+# Copie des fichiers de l'application
+COPY web/requirements.txt .
+COPY web/app.py .
+COPY web/templates/* ./templates/
+COPY web/static/* ./static/
+COPY web/utils/* ./utils/
+
+# Installation des dépendances Python
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Création du répertoire pour les logs Suricata
+RUN mkdir -p /var/log/suricata && \
+    chmod 755 /var/log/suricata
+
+# Variables d'environnement
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=development
+
+# Port d'exposition
+EXPOSE 5000
+
+# Démarrage de l'application
+CMD ["flask", "run", "--host=0.0.0.0"] 

@@ -1,0 +1,5 @@
+# Bloquer les scans SSH agressifs
+drop tcp $EXTERNAL_NET any -> $HOME_NET 22 (msg:"SSH Scan Blocked"; flow:to_server; flags:S; threshold:type both,track by_src,count 5,seconds 60; classtype:attempted-recon; sid:2001234; rev:1;)
+
+# Bloquer les tentatives de version scanning
+drop tcp $EXTERNAL_NET any -> $HOME_NET 22 (msg:"SSH Version Scan Blocked"; flow:established,to_server; content:"SSH-"; offset:0; depth:4; threshold:type both,track by_src,count 3,seconds 60; classtype:attempted-recon; sid:2001235; rev:1;) 

@@ -1,0 +1,27 @@
+FROM ubuntu:22.04
+
+# Installation des dépendances
+RUN apt-get update && apt-get install -y \
+    curl \
+    apt-transport-https \
+    lsb-release \
+    gnupg2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Ajout du dépôt Wazuh
+RUN curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | apt-key add - && \
+    echo "deb https://packages.wazuh.com/4.x/apt/ stable main" | tee /etc/apt/sources.list.d/wazuh.list
+
+# Installation de l'agent Wazuh
+RUN apt-get update && \
+    WAZUH_MANAGER="192.168.68.77" WAZUH_AGENT_GROUP="default" apt-get install -y wazuh-agent && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configuration de l'agent
+COPY wazuh-config/ossec.conf /var/ossec/etc/ossec.conf
+
+# Script de démarrage
+COPY wazuh-config/start.sh /start.sh
+RUN chmod +x /start.sh
+
+CMD ["/start.sh"] 

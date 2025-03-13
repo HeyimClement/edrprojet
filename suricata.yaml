@@ -1,0 +1,169 @@
+%YAML 1.1
+---
+# Suricata configuration file for Docker
+
+vars:
+  # more specific is better for alert accuracy and performance
+  address-groups:
+    HOME_NET: "[172.16.0.0/12,192.168.0.0/16,10.0.0.0/8]"
+    EXTERNAL_NET: "!$HOME_NET"
+    HTTP_SERVERS: "$HOME_NET"
+    SMTP_SERVERS: "$HOME_NET"
+    SQL_SERVERS: "$HOME_NET"
+    DNS_SERVERS: "$HOME_NET"
+    TELNET_SERVERS: "$HOME_NET"
+    AIM_SERVERS: "$EXTERNAL_NET"
+    DC_SERVERS: "$HOME_NET"
+    DNP3_SERVER: "$HOME_NET"
+    DNP3_CLIENT: "$HOME_NET"
+    MODBUS_CLIENT: "$HOME_NET"
+    MODBUS_SERVER: "$HOME_NET"
+    ENIP_CLIENT: "$HOME_NET"
+    ENIP_SERVER: "$HOME_NET"
+
+  port-groups:
+    HTTP_PORTS: "80"
+    SHELLCODE_PORTS: "!80"
+    ORACLE_PORTS: 1521
+    SSH_PORTS: 22
+    DNP3_PORTS: 20000
+    MODBUS_PORTS: 502
+    FILE_DATA_PORTS: "[$HTTP_PORTS,110,143]"
+    FTP_PORTS: 21
+
+# The default logging directory
+default-log-dir: /var/log/suricata/
+
+# Configure Suricata to run in IDS mode
+run-as:
+  user: root
+  group: root
+
+# Configure AF_PACKET for live traffic monitoring
+af-packet:
+  - interface: eth0
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    use-mmap: yes
+    tpacket-v3: yes
+
+# Configure outputs
+outputs:
+  - fast:
+      enabled: yes
+      filename: /var/log/suricata/fast.log
+      append: yes
+      filetype: regular
+
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: /var/log/suricata/eve.json
+      types:
+        - alert
+
+# Logging
+logging:
+  default-log-level: info
+  outputs:
+    - console:
+        enabled: yes
+    - file:
+        enabled: yes
+        filename: /var/log/suricata/suricata.log
+        level: info
+
+# Configure rules
+default-rule-path: /var/lib/suricata/rules
+rule-files:
+  - local.rules
+
+# Configuration de la détection
+detect-engine:
+  profile: medium
+  sgh-mpm-context: auto
+  inspection-recursion-limit: 3000
+  rule-reload: true
+
+# Configuration SSH
+app-layer:
+  protocols:
+    ssh:
+      enabled: yes
+
+# Désactiver les règles par défaut
+default-config:
+  disable-all-rules: yes
+
+# Configuration des alertes
+alerts:
+  xff:
+    enabled: no
+  
+# Un seul bloc threshold-config
+threshold-config:
+  threshold-file: /etc/suricata/threshold.config
+  defaults:
+    type: threshold
+    track: by_src
+    count: 5
+    seconds: 60
+
+# Classification des alertes
+classification-file: /etc/suricata/classification.config
+
+# Configure host OS policy
+host-os-policy:
+  # Linux policy
+  linux: [0.0.0.0/0]
+
+# Règles pour SSH
+ssh-events:
+  enabled: yes
+  # Réduire la sensibilité des alertes SSH
+  ssh:
+    # Augmenter le seuil pour les alertes de scan
+    scan-threshold: 30
+    # Réduire la durée de mémorisation des connexions
+    connection-timeout: 10
+    # Désactiver les alertes de version SSH
+    disable-version-alerts: true
+
+# Règles de corrélation
+event-config:
+  - event-type: ssh
+    track: by_src
+    timeframe: 60
+    threshold:
+      type: include
+      count: 5
+      # Corréler les événements SSH pour détecter le bruteforce
+      rules:
+        - "2001219"  # Version SSH
+        - "2001320"  # Login attempt
+    action:
+      - set-event: "ssh-bruteforce"
+      - set-severity: 1
+
+# Ajuster la sensibilité des règles
+rule-threshold:
+  - id: "2001219"    # SSH version string
+    type: suppress   # Supprimer ces alertes
+  
+  - id: "2001320"    # SSH login attempt
+    type: threshold
+    track: by_src
+    count: 5        # Alerte tous les 5 essais
+
+# Configuration des statistiques
+stats:
+  enabled: yes
+  interval: 10
+  decoder-events: yes
+  http-events: yes
+  dns-events: yes
+  file-store-events: yes
+  logger: file
+  log-dir: /var/log/suricata
+  stats-log-interval: 60 

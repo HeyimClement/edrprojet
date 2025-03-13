@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Alertes{% endblock %}
+{% block page_title %}Alertes{% endblock %}
+
+{% block extra_css %}
+<style>
+.alerts-container {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.priority-1 {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.priority-2 {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.alert-filters {
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.table th {
+    background-color: #f8f9fa;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="alerts-container">
+    <div class="alert-filters">
+        <div class="input-group" style="max-width: 300px;">
+            <input type="text" class="form-control" id="search" placeholder="Rechercher...">
+            <button class="btn btn-outline-secondary" type="button">
+                <i class='bx bx-search'></i>
+            </button>
+        </div>
+        <select class="form-select" style="max-width: 200px;">
+            <option value="all">Toutes les priorités</option>
+            <option value="1">Priorité 1</option>
+            <option value="2">Priorité 2</option>
+            <option value="3">Priorité 3</option>
+        </select>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date/Heure</th>
+                    <th>Type</th>
+                    <th>Message</th>
+                    <th>Priorité</th>
+                    <th>Source</th>
+                    <th>Destination</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in alerts %}
+                <tr class="priority-{{ alert.priority }}">
+                    <td>{{ alert.timestamp }}</td>
+                    <td>{{ alert.classification }}</td>
+                    <td>{{ alert.message }}</td>
+                    <td>{{ alert.priority }}</td>
+                    <td>{{ alert.source }}</td>
+                    <td>{{ alert.destination }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search');
+    const rows = document.querySelectorAll('tbody tr');
+    
+    searchInput.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
+    });
+});
+</script>
+{% endblock %} 

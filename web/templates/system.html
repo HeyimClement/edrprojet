@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Système{% endblock %}
+{% block page_title %}État du Système{% endblock %}
+
+{% block content %}
+<div class="system-stats">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">CPU</h5>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: {{ stats.cpu_percent }}%">
+                            {{ stats.cpu_percent }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Mémoire</h5>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: {{ stats.memory_percent }}%">
+                            {{ stats.memory_percent }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">{{ stats.memory_used }} / {{ stats.memory_total }} GB</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

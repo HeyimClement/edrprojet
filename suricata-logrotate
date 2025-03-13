@@ -1,0 +1,13 @@
+/var/log/suricata/*.log /var/log/suricata/*.json
+{
+    daily
+    maxsize 1G
+    rotate 10
+    missingok
+    nocompress
+    create
+    sharedscripts
+    postrotate
+        pkill -HUP -f suricata
+    endscript
+} 

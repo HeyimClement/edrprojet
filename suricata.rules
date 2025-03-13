@@ -1,0 +1,45 @@
+# Règle de base pour détecter les paquets ICMP
+alert icmp any any -> any any (msg:"ICMP Packet found"; sid:1; rev:1;)
+
+# Détection de toute tentative de connexion SSH
+alert tcp any any -> $HOME_NET 22 (msg:"SSH connection attempt"; flow:to_server; flags:S; classtype:attempted-admin; sid:2; rev:1;)
+
+# Détection d'échec d'authentification SSH
+alert tcp any any -> $HOME_NET 22 (msg:"SSH authentication failed"; flow:established,to_server; content:"Failed password"; nocase; classtype:unsuccessful-user; sid:3; rev:1;)
+
+# Détection d'échec d'authentification SSH pour root
+alert tcp any any -> $HOME_NET 22 (msg:"SSH root authentication failed"; flow:established,to_server; content:"Failed password for root"; nocase; classtype:unsuccessful-user; sid:4; rev:1;)
+
+# Détection d'échec d'authentification SSH pour utilisateur invalide
+alert tcp any any -> $HOME_NET 22 (msg:"SSH invalid user authentication failed"; flow:established,to_server; content:"Failed password for invalid user"; nocase; classtype:unsuccessful-user; sid:5; rev:1;)
+
+# Détection de connexion SSH réussie
+alert tcp any any -> $HOME_NET 22 (msg:"Successful SSH login"; flow:established,to_server; content:"Accepted password"; nocase; classtype:successful-admin; sid:6; rev:1;)
+
+# Détection de connexion SSH réussie pour root
+alert tcp any any -> $HOME_NET 22 (msg:"Successful SSH root login"; flow:established,to_server; content:"Accepted password for root"; nocase; classtype:successful-admin; sid:7; rev:1;)
+
+# Détection de multiples échecs d'authentification
+alert tcp any any -> $HOME_NET 22 (msg:"Multiple SSH authentication failures"; flow:established,to_server; content:"Failed password"; nocase; threshold:type threshold, track by_src, count 3, seconds 60; classtype:attempted-admin; sid:8; rev:1;)
+
+# Détection de tentative de connexion avec un utilisateur invalide
+alert tcp any any -> $HOME_NET 22 (msg:"SSH invalid user login attempt"; flow:established,to_server; content:"Invalid user"; nocase; classtype:attempted-user; sid:9; rev:1;)
+
+# Détection de scan de port SSH
+alert tcp any any -> $HOME_NET 22 (msg:"SSH port scan detected"; flags:S; threshold:type both, track by_src, count 3, seconds 30; classtype:attempted-recon; sid:10; rev:1;)
+
+# Détection de déconnexion forcée
+alert tcp any any -> $HOME_NET 22 (msg:"SSH connection closed by server"; flow:established,to_server; content:"Connection closed by"; nocase; classtype:not-suspicious; sid:11; rev:1;)
+
+# Détection de version SSH
+alert tcp $HOME_NET 22 -> any any (msg:"SSH version string"; flow:established,from_server; content:"SSH-"; depth:4; classtype:protocol-command-decode; sid:12; rev:1;)
+
+# Détection de tentative d'exploitation connue
+alert tcp any any -> $HOME_NET 22 (msg:"SSH exploit attempt"; flow:established,to_server; content:"SSH-"; nocase; pcre:"/(?:exploit|overflow|injection)/i"; classtype:attempted-admin; sid:13; rev:1;)
+
+# Détection de version SSH obsolète
+alert tcp any any -> $HOME_NET 22 (msg:"Old SSH version detected"; flow:established,to_server; content:"SSH-1"; depth:5; classtype:policy-violation; sid:14; rev:1;)
+
+# Détection de tentative de connexion en dehors des heures normales
+# Ajustez les heures selon vos besoins (ici entre 23h et 6h)
+alert tcp any any -> $HOME_NET 22 (msg:"SSH connection attempt outside business hours"; flow:to_server; flags:S; detection_filter:track by_src, count 1, seconds 60; classtype:policy-violation; sid:15; rev:1; timestring:"%H"; hourcode:>22,<6;) 

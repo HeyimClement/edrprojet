@@ -1,0 +1,29 @@
+# Règles SSH personnalisées
+
+# 1. Détection des scans
+# Scan SYN basique
+alert tcp any any -> $HOME_NET 22 (msg:"[SCAN] SSH SYN Scan"; flow:to_server; flags:S,12; threshold:type threshold, track by_src, count 5, seconds 30; classtype:attempted-recon; sid:5000001; rev:1;)
+
+# Scan de version SSH
+alert tcp any any -> $HOME_NET 22 (msg:"[SCAN] SSH Version Scan"; flow:established; content:"SSH-"; depth:4; threshold:type threshold, track by_src, count 3, seconds 30; classtype:attempted-recon; sid:5000002; rev:1;)
+
+# 2. Détection des tentatives de connexion
+# Tentative avec mauvais mot de passe (Hydra)
+alert tcp any any -> $HOME_NET 22 (msg:"[AUTH] SSH Hydra Auth Attempt"; flow:established; content:"SSH-"; depth:4; pcre:"/^SSH-[12]\.[0-9]/"; threshold:type threshold, track by_src, count 1, seconds 60; classtype:attempted-admin; sid:5000003; rev:1;)
+
+# Tentative avec utilisateur invalide
+alert tcp any any -> $HOME_NET 22 (msg:"[AUTH] SSH Invalid User"; flow:established; content:"Invalid user"; threshold:type threshold, track by_src, count 1, seconds 60; classtype:attempted-admin; sid:5000004; rev:1;)
+
+# 3. Détection de bruteforce
+# Bruteforce détecté (Hydra)
+alert tcp any any -> $HOME_NET 22 (msg:"[BRUTEFORCE] SSH Hydra Bruteforce"; flow:established; content:"SSH-"; threshold:type both, track by_src, count 5, seconds 30; classtype:attempted-admin; sid:5000005; rev:1;)
+
+# 4. Connexions réussies
+# Connexion réussie
+alert tcp any any -> $HOME_NET 22 (msg:"[AUTH] SSH Login Success"; flow:established; content:"Accepted"; content:"password"; within:50; classtype:successful-admin; sid:5000006; rev:1;)
+
+# 5. Détection DoS
+alert tcp any any -> $HOME_NET 22 (msg:"[DOS] SSH DoS Attempt"; flow:to_server; flags:S,12; threshold:type both, track by_src, count 50, seconds 10; classtype:attempted-dos; sid:5000007; rev:1;)
+
+# Suppression de la règle de test générique qui génère trop d'alertes
+# alert tcp any any -> $HOME_NET 22 (msg:"[TEST] Trafic SSH détecté"; flow:to_server; classtype:attempted-recon; sid:9000001; rev:1;) 

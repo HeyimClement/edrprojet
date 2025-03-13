@@ -1,0 +1,104 @@
+version: '3'
+
+services:
+  ssh-honeypot:
+    build: .
+    container_name: ssh-suricata
+    ports:
+      - "2222:22"  # Exposer SSH sur le port 2222 de l'hôte
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    cap_add:
+      - NET_ADMIN  # Nécessaire pour que Suricata puisse surveiller le trafic réseau
+      - SYS_NICE   # Pour les performances
+    volumes:
+      - suricata_logs:/var/log/suricata
+    networks:
+      honeypot_network:
+        ipv4_address: 172.18.0.2
+
+  attacker:
+    image: kalilinux/kali-rolling
+    container_name: attacker
+    depends_on:
+      - ssh-honeypot
+    volumes:
+      - ./scripts:/scripts
+    tty: true
+    stdin_open: true
+    command: >
+      bash -c '
+        echo "Starting attacker container..." &&
+        apt-get update &&
+        apt-get install -y \
+          sshpass \
+          nmap \
+          netcat-traditional \
+          openssh-client \
+          hydra \
+          iputils-ping \
+          wordlists &&
+        update-alternatives --install /usr/bin/nc nc /usr/bin/nc.traditional 10 &&
+        echo "Installation completed" &&
+        while true; do
+          sleep 1
+        done
+      '
+    networks:
+      honeypot_network:
+        ipv4_address: 172.18.0.3
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: edr-web
+    volumes:
+      - ./web:/app
+      - suricata_logs:/var/log/suricata
+    ports:
+      - "5000:5000"
+    networks:
+      - honeypot_network
+    depends_on:
+      - ssh-honeypot
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - PYTHONUNBUFFERED=1
+
+  wazuh-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.wazuh-agent
+    container_name: wazuh-agent
+    volumes:
+      - suricata_logs:/var/log/suricata:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      honeypot_network:
+        ipv4_address: 172.18.0.5
+      default:
+        ipv4_address: 192.168.68.100  # Assurez-vous que cette IP est dans votre réseau
+    extra_hosts:
+      - "wazuh-manager:192.168.68.77"
+    restart: always
+    depends_on:
+      - ssh-honeypot
+
+volumes:
+  suricata_logs:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.68.0/24  # Assurez-vous que ce réseau correspond à votre configuration
+  honeypot_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16 
